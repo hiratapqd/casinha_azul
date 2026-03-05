@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grupo Casinha Azul</title>
+    <link rel="stylesheet" href="/styles/styles.css">
+</head>
+<body>
+
+<%- include('partials/header') %>
+
+<main class="hero">
+    <h1>Bem-vindo</h1>
+    <p>O estilo desta página agora é carregado via EJS.</p>
+
+<!--     <ul>
+  <% (terapias || []).forEach(t => { %>
+    <li><a href="/atendimento/<%= t.slug %>"><%= t.nome %></a></li>
+  <% }) %>
+</ul> -->
+
+<div class="dashboard">
+    <div class="card">
+        <h3>Voluntários Ativos</h3>
+        <p><%= resumo.voluntarios %></p>
+    </div>
+    <div class="card">
+        <h3>Atendimentos Hoje</h3>
+        <p><%= resumo.hoje %></p>
+    </div>
+    <div class="card alerta">
+        <h3>Taxa de Abandono</h3>
+        <p><%= resumo.taxaAbandono %>%</p>
+        <small><%= resumo.apometriaUnica %> assistidos (Só Apometria)</small>
+    </div>
+</div>
+</main>
+
+</body>
+</html>

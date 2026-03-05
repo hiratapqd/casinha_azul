@@ -1,3 +1,8 @@
+populate_db/
+schema/
+backup_Mar_5.zip
+connect_mongodb.js
+
 # Logs
 logs
 *.log
