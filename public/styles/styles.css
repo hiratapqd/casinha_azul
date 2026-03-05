@@ -9,24 +9,34 @@
 }
 
 body {
-    background-color: #f9f9f9; /* Fundo leve para dar contraste */
+    background-color: #f9f9f9; 
 }
 
 /* Estilização do Header e Menu com Fundo Azul */
 header {
-    background-color: #1277bb; /* O azul turquesa do site original */
-    border-bottom: 3px solid #0693e3; /* Uma sombra azul um pouco mais escura para dividir */
+    background-color: #1277bb; 
+    border-bottom: 3px solid #0693e3; 
+    align-items: center;
     padding: 0 20px;
+    height: 120px;
 }
 
 nav {
     display: flex;
-    justify-content: center;
+    margin: 0 auto;
     align-items: center;
     height: 70px;
 }
 
+.logo {
+    margin-top: 40px;
+    margin-right: 20px;
+    margin-left: 10px;
+    height: 90px;
+}
+
 .menu {
+    margin-top: 40px;
     list-style: none;
     display: flex;
 }
@@ -39,14 +49,14 @@ nav {
     display: block;
     padding: 20px 25px;
     text-decoration: none;
-    color: #ffffff; /* Texto branco para contrastar com o azul */
+    color: #ffffff; 
     font-weight: 600;
     transition: all 0.3s ease;
 }
 
-/* Efeito de Hover (Quando passa o mouse) */
+/* Efeito de Hover  */
 .menu a:hover {
-    background-color: rgba(255, 255, 255, 0.2); /* Fundo branco semi-transparente */
+    background-color: rgba(255, 255, 255, 0.2);
     color: #ffffff;
 }
 
@@ -67,12 +77,12 @@ nav {
 .dropdown-content a {
     padding: 12px 20px;
     font-size: 14px;
-    color: #333333; /* Texto escuro dentro do submenu branco */
+    color: #333333; 
 }
 
 .dropdown-content a:hover {
     background-color: #f1f1f1;
-    color: #00c1cf; /* Texto azul no hover dentro do submenu */
+    color: #00c1cf; 
 }
 
 /* Mostrar o submenu ao passar o mouse */
@@ -107,13 +117,13 @@ nav {
 /* Configuração para alinhar campos lado a lado */
 .form-row {
     display: flex;
-    gap: 20px; /* Espaço entre os campos */
+    gap: 20px; 
     margin-bottom: 15px;
 }
 
 .form-row .form-group {
-    flex: 1; /* Faz os campos dividirem o espaço igualmente */
-    margin-bottom: 0; /* Remove a margem inferior para não desalinharem */
+    flex: 1; 
+    margin-bottom: 0; 
 }
 
 /* Ajustes específicos para campos menores ou maiores */
@@ -134,7 +144,7 @@ nav {
 }
 /* Centraliza o cabeçalho da seção de disponibilidade */
 .disponibilidade-secao {
-    text-align: center; /* Centraliza o título e o parágrafo */
+    text-align: center; 
     margin-top: 30px;
     padding: 20px;
     background: #fdfdfd;
@@ -144,17 +154,16 @@ nav {
 
 /* Container da grade para centralizar o conteúdo interno */
 .grade-container {
-    display: inline-block; /* Faz o container ter apenas a largura necessária */
-    text-align: left;      /* Mantém o texto das modalidades alinhado à esquerda internamente */
+    display: inline-block; 
+    text-align: left;      
     margin-top: 20px;
     width: 100%;
-    max-width: 800px;      /* Limita a largura para não espalhar demais em telas grandes */
-}
+    max-width: 800px;      
 
 /* Ajuste das linhas para centralização */
 .linha-modalidade {
     display: flex;
-    justify-content: center; /* Centraliza os itens na linha */
+    justify-content: center; 
     align-items: center;
     padding: 10px 0;
     border-bottom: 1px solid #f0f0f0;
@@ -165,7 +174,7 @@ nav {
     width: 150px; 
     font-weight: bold;
     color: #2c3e50;
-    text-align: right;    /* Alinha o nome da modalidade em direção aos checks */
+    text-align: right;    
     margin-right: 20px;
 }
 
