@@ -1,27 +1,111 @@
-# Sistema da Casinha Azul
-## inicio
-a tela inicial mostra 3 cards, quantidade de voluntarios ativos, atendimentos hoje, taxa de abandono (percentagem de assistidos que fizeram apenas a apometria e nanhum outro tratamento)
+# Casinha Azul
 
-## Cadastro
-o cadastro de assistidos utiliza o CPF como chave primaria, o que impede a duplicação. Não é permitido duplicação do registro de assistidos
+Sistema web para gestão de atendimentos fraternos da **Casinha Azul**, com cadastro de assistidos e voluntários, solicitações de atendimento, registro de terapias e relatórios operacionais.
 
-## solicitação de atendimento
-O foco da Casinha Azul é a apometria, a solicitação de atendimento é somente apometrico.
-temos uma tabela com o limite de atendimento do dia.
-a solicitação de atendimento apometrico coleta os dados e os primeiros assistidos até o limite do dia são automaticamente aprovados, +4 na lista de espera
+## Visão geral
 
-## atendimento
-focado no preenchimento pelo Dirigente Apometrico, voluntario do Reiki, Auriculo, Homeopata ou mãos sem fronteiras
-depois de inserir o cpf, os ultimos 12 atendimentos serão automaticamente carregados, assim como o nome.
+O sistema foi desenvolvido em **Node.js + Express + EJS**, com persistência em **MongoDB Atlas**.
 
-## Voulntários
-focado no Cadastro de voluntarios onde usamos também o cpf como chave primaria
+Ele permite:
 
-criei uma escala de voluntarios para ajudar na programação do dia
+- cadastrar assistidos
+- cadastrar voluntários e suas disponibilidades
+- registrar solicitações de atendimento
+- registrar atendimentos por terapia
+- consultar histórico por CPF
+- visualizar escala de voluntários
+- acompanhar relatórios de inatividade e atendimentos do dia
+
+## Tecnologias utilizadas
+
+- Node.js
+- Express
+- EJS
+- MongoDB Atlas
+- Mongoose
+- dotenv
+
+## Estrutura principal do projeto
+
+```text
+casinha-azul/
+├── models/
+│   ├── Atendimento.js
+│   ├── Assistido.js
+│   ├── Solicitacao.js
+│   └── Voluntario.js
+├── public/
+│   ├── images/
+│   └── styles/
+│       └── styles.css
+├── views/
+│   ├── atendimento/
+│   ├── relatorios/
+│   ├── partials/
+│   └── *.ejs
+├── server.js
+├── package.json
+└── .env
+Pré-requisitos
+
+Antes de iniciar, você precisa ter instalado:
+
+Node.js
+
+npm
+
+uma conta no MongoDB Atlas
+
+Configuração do ambiente
+
+Crie um arquivo .env na raiz do projeto com a variável:
+
+MONGODB_URI=mongodb+srv://USUARIO:SENHA@SEUCLUSTER.mongodb.net/casinha_azul
+
+Importante: não versionar o .env no GitHub.
+
+Instalação
+
+Instale as dependências:
+
+npm install
+Execução local
+
+Inicie o servidor com:
+
+node server.js
+
+ou, se houver script no package.json:
+
+npm start
+
+O sistema ficará disponível em:
+
+http://localhost:3000
+
+Observações importantes
+1. Variável de ambiente
+
+A conexão com o MongoDB depende da variável:
+
+MONGODB_URI
+2. Arquivos estáticos
+
+O projeto serve a pasta public/ com:
+
+CSS
+
+imagens
+
+logotipo
+
+3. Fuso horário
+
+O sistema possui funções para salvar atendimentos com data e hora ajustadas ao fuso America/Sao_Paulo.
+
+4. Modelagem atual
+
+Hoje existem rotas específicas para alguns tipos de atendimento e uma rota dinâmica POST /atendimento/:tipo. Conforme o sistema evoluir, vale padronizar todas as telas para aproveitar a rota dinâmica.
 
 
-## Relatorios
-	deixei 2 relatórios prontos 
-	assistidos que fizeram 1 apometria e nenhum outro atendimento
-	lista de todos os atendimentos do dia
 
