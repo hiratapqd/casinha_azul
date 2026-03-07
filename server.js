@@ -18,7 +18,7 @@ app.use(express.json());
 // --- CONEXÃO COM MONGODB ---
 const MONGODB_URI = process.env.MONGODB_URI;
 mongoose.connect(MONGODB_URI)
-    .then(() => console.log("✅ Conectado ao MongoDB Atlas"))
+    .then(() => console.log("✅ Conectado ao MongoDB Atlas 22:43"))
     .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
 
 // Middleware Global
@@ -34,7 +34,8 @@ app.use(async (req, res, next) => {
     }
 });
 
-// --- ROTA PRINCIPAL (DASHBOARD) ---
+// --- ROTA DE FORMULARIOS ---
+app.get('/cadastro', (req, res) => res.render('cadastro_assistidos'));
 app.get('/', async (req, res) => {
     try {
         const hojeInicio = new Date();
@@ -132,7 +133,23 @@ app.get('/', async (req, res) => {
     }
 });
 
-// --- ROTA DE CADASTRO DE MÉDIUNS ---
+app.get('/solicitacao_atendimento', (req, res) => res.render('solicitacao_atendimento'));
+app.get('/relatorios/atendimentos-hoje', (req, res) => {
+    res.send("Página de Relatórios de Hoje em construção");
+});
+
+app.get('/relatorios/apometria-inativos', (req, res) => {
+    res.send("Página de Inativos em construção");
+});
+app.get('/cadastro_mediuns', (req, res) => {
+    res.render('cadastro_mediuns');
+});
+app.get('/atendimento/apometrico', (req, res) => {
+    res.render('atendimento/apometrico', { atendimentos: [] });
+});
+
+
+// --- ROTA DE CADASTRO  ---
 app.post('/mediun/novo', async (req, res) => {
     try {
         const { cpf, forceUpdate } = req.body;
@@ -174,10 +191,91 @@ app.post('/mediun/novo', async (req, res) => {
     }
 });
 
-app.get('/mediun/novo', (req, res) => {
-    res.render('cadastro_mediuns');
-});
+// --- ROTA DE CADASTRO DE ASSISTIDO ---
+app.post('/assistido/novo', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const cpf = req.body.cpf;
 
+        // 1. Verifica se o assistido já existe
+        const assistidoExistente = await db.collection('assistidos').findOne({ _id: cpf });
+
+        if (assistidoExistente) {
+            // Se existir, enviamos o status 'existente' e o nome para o alerta
+            return res.json({ 
+                status: 'existente', 
+                nome: assistidoExistente.nome 
+            });
+        }
+
+        // 2. Se não existe, procede com a gravação normal
+        const novoAssistido = {
+            _id: cpf,
+            nome: req.body.nome,
+            telefone: req.body.telefone,
+            email: req.body.email,
+            data_cadastro: new Date().toISOString().split('T')[0]
+        };
+
+        await db.collection('assistidos').insertOne(novoAssistido);
+        res.json({ status: 'sucesso' });
+
+    } catch (err) {
+        console.error("Erro ao cadastrar assistido:", err);
+        res.status(500).json({ status: 'erro' });
+    }
+});
+// ROTA DE GRAVAÇÃO DA SOLICITAÇÃO
+app.post('/atendimento/solicitacao', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const dataInput = req.body.data;
+        const dataInicio = new Date(dataInput);
+        dataInicio.setUTCHours(0,0,0,0);
+        const dataFim = new Date(dataInput);
+        dataFim.setUTCHours(23,59,59,999);
+
+        // 1. Pegar o dia da semana para o limite
+        const diasSemana = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
+        const nomeDia = diasSemana[new Date(dataInput).getUTCDay()];
+
+        // 2. Buscar o limite na coleção limite_atendimento
+        const regra = await db.collection('limite_atendimento').findOne({ 
+            terapia: "Apometria", 
+            dia_semana: nomeDia 
+        });
+        const limiteMax = regra ? parseInt(regra.qtos_atendimentos) : 0;
+
+        // 3. Contar quantas solicitações já existem para este dia específico
+        const totalExistente = await Solicitacao.countDocuments({ 
+            data_pedido: { $gte: dataInicio, $lte: dataFim } 
+        });
+
+        const posicaoAtual = totalExistente + 1; // A posição desta pessoa
+        let statusFinal = "Aprovado";
+        let msgExtra = "Confirmado";
+
+        if (posicaoAtual > limiteMax) {
+            statusFinal = "Pendente";
+            msgExtra = "Lista de Espera";
+        }
+
+        const novaSolicitacao = new Solicitacao({
+            data_pedido: dataInput,
+            cpf_assistido: req.body.cpf_assistido,
+            nome_assistido: req.body.nome,
+            status: statusFinal,
+            observacoes: `Senha: ${posicaoAtual}/${limiteMax} - ${req.body.queixa}`
+        });
+
+        await novaSolicitacao.save();
+
+        // Redireciona com os dados para o SweetAlert
+        res.redirect(`/solicitacao_atendimento?sucesso=true&posicao=${posicaoAtual}&limite=${limiteMax}&status=${statusFinal}`);
+    } catch (error) {
+        res.status(500).send("Erro: " + error.message);
+    }
+});
 // --- OUTRAS ROTAS ---
 app.get('/assistido/novo', (req, res) => res.render('cadastro_assistidos'));
 
@@ -192,4 +290,4 @@ app.post('/atendimento/novo', async (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor pronto na porta ${PORT}`));
+app.listen(PORT, () => console.log(`🚀 Servidor pronto na porta http://localhost:${PORT}`));
