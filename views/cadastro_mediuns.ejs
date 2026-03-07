@@ -90,43 +90,6 @@
         enviarFormulario();
     });
 
-/*     async function enviarFormulario() {
-        const body = new URLSearchParams(new FormData(form));
-        
-        const resposta = await fetch('/mediun/novo', {
-            method: 'POST',
-            body: body
-        });
-
-        const resultado = await resposta.json();
-
-        if (resultado.status === 'conflito') {
-            Swal.fire({
-                title: 'CPF já cadastrado!',
-                text: "Deseja atualizar os dados deste voluntário com as novas informações?",
-                icon: 'warning',
-                showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
-                confirmButtonText: 'Sim, atualizar!',
-                cancelButtonText: 'Cancelar'
-            }).then((result) => {
-                if (result.isConfirmed) {
-                    document.getElementById('forceUpdate').value = 'true';
-                    enviarFormulario(); // Reenvia com a permissão de atualizar
-                }
-            });
-        } else if (resultado.status === 'sucesso') {
-            Swal.fire(
-                'Concluído!',
-                resultado.acao === 'atualizado' ? 'Dados atualizados com sucesso.' : 'Novo voluntário cadastrado.',
-                'success'
-            ).then(() => window.location.href = '/');
-        } else {
-            Swal.fire('Erro!', 'Ocorreu um problema ao salvar.', 'error');
-        }
-    } */
-
     async function enviarFormulario() {
     const formElement = document.querySelector('.form-container');
     const formData = new FormData(formElement);
