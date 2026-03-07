@@ -1,4 +1,5 @@
 <%- include('partials/header') %>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <link rel="stylesheet" href="/styles/styles.css">
 <main class="hero">
     <h1>Cadastro dos mediuns</h1>
@@ -68,8 +69,9 @@
 
 
     </div><br>
+    <button type="button" onclick="enviarFormulario(event)" class="btn-enviar">Finalizar Cadastro</button>
         <input type="hidden" id="forceUpdate" name="forceUpdate" value="false">
-        <button type="submit" class="btn-enviar">Finalizar Cadastro do medium</button>
+        <!-- <button type="submit" class="btn-enviar">Finalizar Cadastro do medium</button> -->
     </form>
 
 
@@ -89,15 +91,18 @@
         
         enviarFormulario();
     });
+</script>
 
-    async function enviarFormulario() {
+<!-- <script>
+async function enviarFormulario(event) {
+    if (event) event.preventDefault(); // Impede o recarregamento da página
+
     const formElement = document.querySelector('.form-container');
     const formData = new FormData(formElement);
-    
-    // Convertendo FormData para um objeto simples para enviar como JSON
     const dados = {};
+
+    // Coleta todos os campos, transformando campos com nomes repetidos (checkboxes) em Arrays
     formData.forEach((value, key) => {
-        // Se o campo já existe (como nos checkboxes de dias), transforma em array
         if (dados[key]) {
             if (!Array.isArray(dados[key])) {
                 dados[key] = [dados[key]];
@@ -108,18 +113,19 @@
         }
     });
 
+    // Força o valor do forceUpdate atualizado pelo SweetAlert
+    dados.forceUpdate = document.getElementById('forceUpdate').value === 'true';
+
     try {
         const resposta = await fetch('/mediun/novo', {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json' // Informamos que estamos enviando JSON
-            },
-            body: JSON.stringify(dados) // Transformamos o objeto em texto JSON
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
         });
 
-        const resultado = await resposta.json(); [cite: 24]
+        const resultado = await resposta.json(); [cite: 42]
 
-        if (resultado.status === 'conflito') { [cite: 24]
+        if (resultado.status === 'conflito') { [cite: 42]
             Swal.fire({
                 title: 'CPF já cadastrado!',
                 text: "Deseja atualizar os dados deste voluntário?",
@@ -129,25 +135,99 @@
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    document.getElementById('forceUpdate').value = 'true';
-                    enviarFormulario(); // Reenvia com forceUpdate=true
+                    document.getElementById('forceUpdate').value = 'true'; [cite: 44]
+                    enviarFormulario(); // Reenvia com a flag de atualização
                 }
             });
-        } else if (resultado.status === 'sucesso') { [cite: 27]
+        } else if (resultado.status === 'sucesso') { [cite: 45]
             Swal.fire(
                 'Concluído!',
                 resultado.acao === 'atualizado' ? 'Dados atualizados.' : 'Cadastrado com sucesso.',
                 'success'
             ).then(() => {
-                window.location.href = '/'; // Só redireciona DEPOIS que o usuário clica no OK do alerta
+                window.location.href = '/'; [cite: 46]
             });
         }
     } catch (err) {
-        console.error("Erro na requisição:", err);
-        Swal.fire('Erro!', 'Não foi possível se comunicar com o servidor.', 'error');
+        console.error("Erro na requisição:", err); [cite: 47]
+        Swal.fire('Erro!', 'Não foi possível se comunicar com o servidor.', 'error'); [cite: 48]
     }
+}
+</script> -->
+
+<script>
+// Função vital para ler os dias selecionados
+function obterCheckboxes(nomeGrupo) {
+    const selecionados = [];
+    // Busca checkboxes marcadas que tenham o nome do grupo no ID ou Name
+    const checkboxes = document.querySelectorAll(`input[type="checkbox"]:checked`);
+    checkboxes.forEach(cb => {
+        if (cb.id.includes(nomeGrupo) || (cb.name && cb.name.includes(nomeGrupo))) {
+            selecionados.push(cb.value);
+        }
+    });
+    return selecionados;
+}
+
+async function enviarFormulario() {
+    // Monta o objeto exatamente como o server.js e o Voluntario.js esperam
+    const dados = {
+        nome: document.getElementById('nome').value,
+        cpf: document.getElementById('cpf').value,
+        telefone: document.getElementById('telefone').value,
+        email: document.getElementById('email').value,
+        mediunidade: document.getElementById('mediunidade').value,
+        esta_ativo: "Sim",
+        forceUpdate: document.getElementById('forceUpdate').value === 'true',
+        
+        // Captura manual de cada array de disponibilidade
+        voluntario_apometria_dias: obterCheckboxes('apometria'),
+        voluntario_reiki_dias: obterCheckboxes('reiki'),
+        voluntario_auriculo_dias: obterCheckboxes('auriculo'),
+        voluntario_maos_dias: obterCheckboxes('maos'),
+        voluntario_homeopatia_dias: obterCheckboxes('homeopatia'),
+        voluntario_cantina_dias: obterCheckboxes('cantina'),
+        voluntario_mesa_dias: obterCheckboxes('mesa'),
+        voluntario_passe_dias: obterCheckboxes('passe') // <--- O Passe entra aqui
+    };
+
+    if (!dados.nome || !dados.cpf) {
+        Swal.fire('Erro', 'Nome e CPF são obrigatórios!', 'error');
+        return;
     }
 
+    try {
+        const resposta = await fetch('/mediun/novo', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(dados)
+        });
+
+        const resultado = await resposta.json();
+
+        if (resultado.status === 'conflito') {
+            Swal.fire({
+                title: 'CPF já cadastrado!',
+                text: "Deseja atualizar os dados?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, atualizar!'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('forceUpdate').value = 'true';
+                    enviarFormulario(); // Reenvia com a flag de atualização
+                }
+            });
+        } else if (resultado.status === 'sucesso') {
+            Swal.fire('Sucesso!', 'Dados gravados com sucesso.', 'success')
+                .then(() => window.location.href = '/'); // Redireciona só após o OK
+        }
+    } catch (err) {
+        console.error("Erro no envio:", err);
+        Swal.fire('Erro', 'Falha ao conectar com o servidor.', 'error');
+    }
+}
 </script>
+
 </main>
 <%- include('partials/footer') %>
