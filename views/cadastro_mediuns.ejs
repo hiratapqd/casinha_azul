@@ -90,7 +90,7 @@
         enviarFormulario();
     });
 
-    async function enviarFormulario() {
+/*     async function enviarFormulario() {
         const body = new URLSearchParams(new FormData(form));
         
         const resposta = await fetch('/mediun/novo', {
@@ -125,7 +125,66 @@
         } else {
             Swal.fire('Erro!', 'Ocorreu um problema ao salvar.', 'error');
         }
+    } */
+
+    async function enviarFormulario() {
+    const formElement = document.querySelector('.form-container');
+    const formData = new FormData(formElement);
+    
+    // Convertendo FormData para um objeto simples para enviar como JSON
+    const dados = {};
+    formData.forEach((value, key) => {
+        // Se o campo já existe (como nos checkboxes de dias), transforma em array
+        if (dados[key]) {
+            if (!Array.isArray(dados[key])) {
+                dados[key] = [dados[key]];
+            }
+            dados[key].push(value);
+        } else {
+            dados[key] = value;
+        }
+    });
+
+    try {
+        const resposta = await fetch('/mediun/novo', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json' // Informamos que estamos enviando JSON
+            },
+            body: JSON.stringify(dados) // Transformamos o objeto em texto JSON
+        });
+
+        const resultado = await resposta.json(); [cite: 24]
+
+        if (resultado.status === 'conflito') { [cite: 24]
+            Swal.fire({
+                title: 'CPF já cadastrado!',
+                text: "Deseja atualizar os dados deste voluntário?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, atualizar!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('forceUpdate').value = 'true';
+                    enviarFormulario(); // Reenvia com forceUpdate=true
+                }
+            });
+        } else if (resultado.status === 'sucesso') { [cite: 27]
+            Swal.fire(
+                'Concluído!',
+                resultado.acao === 'atualizado' ? 'Dados atualizados.' : 'Cadastrado com sucesso.',
+                'success'
+            ).then(() => {
+                window.location.href = '/'; // Só redireciona DEPOIS que o usuário clica no OK do alerta
+            });
+        }
+    } catch (err) {
+        console.error("Erro na requisição:", err);
+        Swal.fire('Erro!', 'Não foi possível se comunicar com o servidor.', 'error');
     }
+    }
+
 </script>
 </main>
 <%- include('partials/footer') %>

@@ -328,16 +328,25 @@ app.get('/voluntarios/escala', async (req, res) => {
 });
 
 // --- ROTA DE CADASTRO  ---
+
+// ROTA DE CADASTRO DE MÉDIUNS/VOLUNTÁRIOS
+// --- ROTA DE CADASTRO DE MÉDIUNS ---
 app.post('/mediun/novo', async (req, res) => {
     try {
         const { cpf, forceUpdate } = req.body;
-        const voluntarioExistente = await Voluntario.findOne({ cpf });
+        const voluntarioExistente = await Voluntario.findOne({ _id: cpf }); // Busca pelo _id (que é o CPF)
 
         if (voluntarioExistente && forceUpdate !== 'true') {
             return res.json({ status: 'conflito' });
         }
 
+        const formatarDias = (campo) => {
+            if (!campo) return [];
+            return Array.isArray(campo) ? campo : [campo];
+        };
+
         const dadosVoluntario = {
+            _id: cpf, // DEFINE O CPF COMO O _ID DO DOCUMENTO
             nome: req.body.nome,
             cpf: req.body.cpf,
             telefone: req.body.telefone,
@@ -345,26 +354,29 @@ app.post('/mediun/novo', async (req, res) => {
             mediunidade: req.body.mediunidade,
             esta_ativo: req.body.esta_ativo || "Sim",
             disponibilidade: {
-                apometria: req.body.voluntario_apometria_dias || [],
-                reiki: req.body.voluntario_reiki_dias || [],
-                auriculo: req.body.voluntario_auriculo_dias || [],
-                maos: req.body.voluntario_maos_dias || [],
-                homeopatia: req.body.voluntario_homeopatia_dias || [],
-                cantina: req.body.voluntario_cantina_dias || [],
-                passe: req.body.voluntario_passe_dias || [],
-                mesa: req.body.voluntario_mesa_dias || []
+                apometria: formatarDias(req.body.voluntario_apometria_dias),
+                reiki: formatarDias(req.body.voluntario_reiki_dias),
+                auriculo: formatarDias(req.body.voluntario_auriculo_dias),
+                maos: formatarDias(req.body.voluntario_maos_dias),
+                homeopatia: formatarDias(req.body.voluntario_homeopatia_dias),
+                cantina: formatarDias(req.body.voluntario_cantina_dias),
+                passe: formatarDias(req.body.voluntario_passe_dias),
+                mesa: formatarDias(req.body.voluntario_mesa_dias)
             }
         };
 
         if (voluntarioExistente) {
-            await Voluntario.updateOne({ cpf }, dadosVoluntario);
+            // Se já existe, usamos o _id para atualizar
+            await Voluntario.updateOne({ _id: cpf }, dadosVoluntario);
             res.json({ status: 'sucesso', acao: 'atualizado' });
         } else {
+            // Se é novo, o objeto já contém o _id: cpf
             const novoVoluntario = new Voluntario(dadosVoluntario);
             await novoVoluntario.save();
             res.json({ status: 'sucesso', acao: 'criado' });
         }
     } catch (err) {
+        console.error("Erro ao salvar voluntário:", err);
         res.status(500).json({ status: 'erro' });
     }
 });
@@ -507,6 +519,48 @@ app.post('/atendimento/auriculo', async (req, res) => {
         res.status(500).send("Erro ao salvar: " + error.message);
     }
 }); */
+
+/* app.post('/mediun/novo', async (req, res) => {
+    try {
+        const { cpf, forceUpdate } = req.body;
+        const voluntarioExistente = await Voluntario.findOne({ cpf });
+
+        if (voluntarioExistente && forceUpdate !== 'true') {
+            return res.json({ status: 'conflito' });
+        }
+
+        const dadosVoluntario = {
+            nome: req.body.nome,
+            cpf: req.body.cpf,
+            telefone: req.body.telefone,
+            email: req.body.email,
+            mediunidade: req.body.mediunidade,
+            esta_ativo: req.body.esta_ativo || "Sim",
+            disponibilidade: {
+                apometria: req.body.voluntario_apometria_dias || [],
+                reiki: req.body.voluntario_reiki_dias || [],
+                auriculo: req.body.voluntario_auriculo_dias || [],
+                maos: req.body.voluntario_maos_dias || [],
+                homeopatia: req.body.voluntario_homeopatia_dias || [],
+                cantina: req.body.voluntario_cantina_dias || [],
+                passe: req.body.voluntario_passe_dias || [],
+                mesa: req.body.voluntario_mesa_dias || []
+            }
+        };
+
+        if (voluntarioExistente) {
+            await Voluntario.updateOne({ cpf }, dadosVoluntario);
+            res.json({ status: 'sucesso', acao: 'atualizado' });
+        } else {
+            const novoVoluntario = new Voluntario(dadosVoluntario);
+            await novoVoluntario.save();
+            res.json({ status: 'sucesso', acao: 'criado' });
+        }
+    } catch (err) {
+        res.status(500).json({ status: 'erro' });
+    }
+}); */
+
 
 const tiposAtendimento = ['reiki', 'passe', 'homeopatico', 'maos_sem_fronteiras'];
 
