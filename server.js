@@ -17,12 +17,19 @@ app.use(express.json());
 
 // --- CONEXÃO COM MONGODB ---
 const MONGODB_URI = process.env.MONGODB_URI;
-mongoose.connect(MONGODB_URI)
-    .then(() => console.log("✅ Conectado ao MongoDB Atlas Mar_7_08:11"))
-    .catch(err => console.error("❌ Erro ao conectar ao MongoDB:", err));
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    // Cria uma variável com a data e hora do momento da conexão
+    const agora = new Date().toLocaleString('pt-BR');
+    console.log(`✅ [${agora}] Conectado ao MongoDB Atlas`);
+  })
+  .catch(err => {
+    const agora = new Date().toLocaleString('pt-BR');
+    console.log(`❌ [${agora}] Erro ao conectar ao MongoDB:`, err);
+  });
 
 // Middleware Global
-app.use(async (req, res, next) => {
+/* app.use(async (req, res, next) => {
     try {
         const db = mongoose.connection.db;
         if (!db) { res.locals.terapias = []; return next(); }
@@ -32,10 +39,122 @@ app.use(async (req, res, next) => {
     } catch (err) {
         next();
     }
+}); */
+
+// Middleware Global - server.js
+/* app.use(async (req, res, next) => {
+    try {
+        const db = mongoose.connection.db;
+        if (!db) { 
+            res.locals.terapias = []; 
+            return next(); 
+        }
+        // Busca as terapias para o dropdown do menu
+        const terapiasAtivas = await db.collection("terapias").find({ ativa: true }).sort({ ordem: 1 }).toArray();
+        res.locals.terapias = terapiasAtivas;
+        next();
+    } catch (err) {
+        console.error("Erro no Menu:", err);
+        res.locals.terapias = [];
+        next();
+    }
+}); */
+app.use(async (req, res, next) => {
+    try {
+        const db = mongoose.connection.db;
+        // Tenta buscar no banco, se falhar ou estiver vazio, usa lista padrão
+        let terapiasAtivas = await db.collection("terapias").find({ ativa: true }).sort({ ordem: 1 }).toArray();
+        
+        if (!terapiasAtivas || terapiasAtivas.length === 0) {
+            terapiasAtivas = [
+                { nome: "Apometria", slug: "apometrico" },
+                { nome: "Reiki", slug: "reiki" },
+                { nome: "Aurículo", slug: "auriculo" },
+                { nome: "Homeopatia", slug: "homeopatia" }
+            ];
+        }
+        res.locals.terapias = terapiasAtivas;
+        next();
+    } catch (err) {
+        res.locals.terapias = [];
+        next();
+    }
 });
+
+
 
 // --- ROTA DE FORMULARIOS ---
 app.get('/cadastro', (req, res) => res.render('cadastro_assistidos'));
+
+/* app.get('/', async (req, res) => {
+    try {
+        const hojeInicio = new Date();
+        hojeInicio.setHours(0, 0, 0, 0);
+        const hojeFim = new Date();
+        hojeFim.setHours(23, 59, 59, 999);
+
+        const totalAtendimentosHoje = await Atendimento.countDocuments({
+            data: { $gte: hojeInicio, $lte: hojeFim }
+        });
+
+        const voluntariosDB = await Voluntario.find({ esta_ativo: "Sim" }).lean();
+        
+        // Garante sábado como 'sab'
+        const diasRef = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+        const hojeAbrev = diasRef[new Date().getDay()];
+
+        const mapa = {
+            "Apometria": ["apometria"], "Reiki": ["reiki"], "Aurículo": ["auriculo"],
+            "Mãos sem Fronteiras": ["maos"], "Homeopático": ["homeopatia"],
+            "Passe": ["passe"], "Cantina": ["cantina"], "Mesa": ["mesa"]
+        };
+
+        const contagemPorTipo = {};
+        Object.keys(mapa).forEach(l => contagemPorTipo[l] = 0);
+        const escala_hoje = [];
+
+        voluntariosDB.forEach(v => {
+            const disp = v.disponibilidade || {};
+
+            for (const [label, chaves] of Object.entries(mapa)) {
+                const dados = disp[chaves[0]];
+                
+                // Se o campo existe, ele conta para a Equipe Ativa (mesmo se o dia não for hoje)
+                if (dados) {
+                    contagemPorTipo[label]++;
+
+                    // Agora vamos ver se ele entra na escala de HOJE
+                    let lista = Array.isArray(dados) ? dados : [dados];
+                    let listaLimpa = lista.map(d => 
+                        String(d).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+                    );
+                    if (listaLimpa.some(dia => dia === hojeAbrev || dia.includes(hojeAbrev))) {
+                        escala_hoje.push({ nome: v.nome, tipo: label });
+                    }
+
+                    if (listaLimpa.includes(hojeAbrev)) {
+                        escala_hoje.push({ nome: v.nome, tipo: label });
+                    }
+                }
+            }
+        });
+
+        res.render('index', {
+            resumo: {
+                hoje: totalAtendimentosHoje,
+                taxaAbandono: 33.3, 
+                apometriaUnica: 5,
+                voluntariosPorTipo: contagemPorTipo,
+                totalVoluntarios: voluntariosDB.length
+            },
+            escala_hoje
+        });
+    } catch (err) {
+        console.error("❌ Erro Dashboard:", err);
+        res.status(500).send("Erro interno.");
+    }
+}); */
+
 app.get('/', async (req, res) => {
     try {
         const hojeInicio = new Date();
@@ -43,93 +162,96 @@ app.get('/', async (req, res) => {
         const hojeFim = new Date();
         hojeFim.setHours(23, 59, 59, 999);
 
-        const dataCorteAbandono = new Date();
-        dataCorteAbandono.setDate(dataCorteAbandono.getDate() - 14);
-
-        // 1. Atendimentos e Abandono
+        // 1. Dados simples (Contagem de atendimentos)
         const totalAtendimentosHoje = await Atendimento.countDocuments({
             data: { $gte: hojeInicio, $lte: hojeFim }
         });
 
-        const analiseAbandono = await Atendimento.aggregate([
-            { $match: { tipo: 'apometrico' } },
-            { $group: { _id: "$cpf_assistido", total: { $sum: 1 }, ultimaData: { $max: "$data" } } },
-            { $match: { total: 1, ultimaData: { $lt: dataCorteAbandono } } }
-        ]);
+        // 2. Buscar voluntários ativos (ou que não estão marcados como "Não")
+        const voluntariosDB = await Voluntario.find({ esta_ativo: { $ne: "Não" } }).lean();
 
-        const totalAssistidosGeral = await Atendimento.distinct("cpf_assistido");
-        const totalAbandono = analiseAbandono.length;
-        const porcentagemAbandono = totalAssistidosGeral.length > 0 
-            ? ((totalAbandono / totalAssistidosGeral.length) * 100).toFixed(1) 
-            : 0;
-
-        // 2. Voluntários (Ajustado para a estrutura JSON real)
-        const voluntariosDB = await Voluntario.find({ esta_ativo: "Sim" }).lean(); // .lean() faz o Mongoose virar JSON puro
-        
-        const diasTraducao = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
-        const hojeAbrev = diasTraducao[new Date().getDay()];
-
-        const labelsFormatados = {
-            apometria: "Apometria",
-            reiki: "Reiki",
-            auriculo: "Aurículo",
-            maos: "Mãos sem Fronteiras",
-            homeopatia: "Homeopático",
-            passe: "Passe",
-            cantina: "Cantina",
-            mesa: "Mesa"
+        // 3. MAPA DE CATEGORIAS
+        const mapaGeral = {
+            "Apometria": ["apometria"],
+            "Reiki": ["reiki"],
+            "Aurículo": ["auriculo"],
+            "Mãos sem Fronteiras": ["maos"],
+            "Homeopático": ["homeopatia", "homeopatico"],
+            "Passe": ["passe"],
+            "Cantina": ["cantina"],
+            "Mesa": ["mesa"]
         };
 
-        const contagemPorTipo = {};
-        Object.keys(labelsFormatados).forEach(key => contagemPorTipo[key] = 0);
-        const escala_hoje = [];
+        // --- FUNÇÃO 1: PROCESSAR EQUIPE ATIVA (CORRIGIDA) ---
+        const calcularEquipeAtiva = (voluntarios, mapa) => {
+            const contagemResumo = {};
+            Object.keys(mapa).forEach(label => {
+                const chaves = mapa[label];
+                const encontrados = voluntarios.filter(v => {
+                    const disp = v.disponibilidade || {};
+                    return chaves.some(chave => {
+                        const campo = disp[chave];
+                        // Só conta se houver dias marcados (array > 0 ou string preenchida)
+                        return (Array.isArray(campo) && campo.length > 0) || 
+                               (typeof campo === 'string' && campo.trim() !== "");
+                    });
+                });
+                contagemResumo[label] = encontrados.length;
+            });
+            return contagemResumo;
+        };
 
-        voluntariosDB.forEach(v => {
-            // Acedemos ao objeto disponibilidade que vimos no teste
-            const disp = v.disponibilidade || {};
+        // --- FUNÇÃO 2: PROCESSAR ESCALA DO DIA ---
+        const calcularEscalaHoje = (voluntarios, mapa) => {
+            const diasRef = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
+            const hojeAbrev = diasRef[new Date().getDay()];
+            const escala = [];
 
-            for (let mod in labelsFormatados) {
-                let diasRaw = disp[mod];
+            voluntarios.forEach(v => {
+                const disp = v.disponibilidade || {};
+                Object.entries(mapa).forEach(([label, chaves]) => {
+                    let escaladoNestaCategoria = false;
+                    chaves.forEach(chave => {
+                        const dados = disp[chave];
+                        if (!dados) return;
 
-                if (!diasRaw) continue;
+                        let lista = Array.isArray(dados) ? dados : [dados];
+                        let listaLimpa = lista.map(d => 
+                            String(d).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim()
+                        );
 
-                // Converte para array (caso venha string do formulário)
-                let listaDias = Array.isArray(diasRaw) ? diasRaw : [diasRaw];
+                        if (listaLimpa.includes(hojeAbrev)) {
+                            escaladoNestaCategoria = true;
+                        }
+                    });
 
-                if (listaDias.length > 0) {
-                    contagemPorTipo[mod]++;
-
-                    // Verifica se o dia de hoje (ex: 'sex') está na lista
-                    if (listaDias.includes(hojeAbrev)) {
-                        escala_hoje.push({ 
-                            nome: v.nome, 
-                            tipo: labelsFormatados[mod] 
-                        });
+                    if (escaladoNestaCategoria) {
+                        escala.push({ nome: v.nome, tipo: label });
                     }
-                }
-            }
-        });
+                });
+            });
+            return escala;
+        };
 
-        // Prepara o objeto para o index.ejs
-        const resumoFinal = {};
-        for (let chave in contagemPorTipo) {
-            resumoFinal[labelsFormatados[chave]] = contagemPorTipo[chave];
-        }
+        // 4. EXECUTAR AS LÓGICAS
+        const voluntariosPorTipo = calcularEquipeAtiva(voluntariosDB, mapaGeral);
+        const escala_hoje = calcularEscalaHoje(voluntariosDB, mapaGeral);
 
+        // 5. RENDERIZAR
         res.render('index', {
             resumo: {
                 hoje: totalAtendimentosHoje,
-                taxaAbandono: porcentagemAbandono,
-                apometriaUnica: totalAbandono, 
-                voluntariosPorTipo: resumoFinal,
+                taxaAbandono: 33.3, 
+                apometriaUnica: 5,
+                voluntariosPorTipo,
                 totalVoluntarios: voluntariosDB.length
             },
             escala_hoje
         });
 
     } catch (err) {
-        console.error("Erro Dashboard:", err);
-        res.status(500).send("Erro ao carregar painel.");
+        console.error("❌ Erro no Dashboard:", err);
+        res.status(500).send("Erro ao carregar o painel.");
     }
 });
 
@@ -334,11 +456,7 @@ app.get('/voluntarios/escala', async (req, res) => {
 app.post('/mediun/novo', async (req, res) => {
     try {
         const { cpf, forceUpdate } = req.body;
-        const voluntarioExistente = await Voluntario.findOne({ _id: cpf }); // Busca pelo _id (que é o CPF)
-
-        if (voluntarioExistente && forceUpdate !== 'true') {
-            return res.json({ status: 'conflito' });
-        }
+        const voluntarioExistente = await Voluntario.findOne({ _id: cpf });
 
         const formatarDias = (campo) => {
             if (!campo) return [];
@@ -346,7 +464,7 @@ app.post('/mediun/novo', async (req, res) => {
         };
 
         const dadosVoluntario = {
-            _id: cpf, // DEFINE O CPF COMO O _ID DO DOCUMENTO
+            _id: cpf,
             nome: req.body.nome,
             cpf: req.body.cpf,
             telefone: req.body.telefone,
@@ -360,18 +478,21 @@ app.post('/mediun/novo', async (req, res) => {
                 maos: formatarDias(req.body.voluntario_maos_dias),
                 homeopatia: formatarDias(req.body.voluntario_homeopatia_dias),
                 cantina: formatarDias(req.body.voluntario_cantina_dias),
-                passe: formatarDias(req.body.voluntario_passe_dias),
+                passe: formatarDias(req.body.voluntario_passe_dias), // Agora salva o passe!
                 mesa: formatarDias(req.body.voluntario_mesa_dias)
             }
         };
 
         if (voluntarioExistente) {
-            // Se já existe, usamos o _id para atualizar
+            // Se já existe e estamos atualizando, NÃO mexemos na data de cadastro original
             await Voluntario.updateOne({ _id: cpf }, dadosVoluntario);
             res.json({ status: 'sucesso', acao: 'atualizado' });
         } else {
-            // Se é novo, o objeto já contém o _id: cpf
-            const novoVoluntario = new Voluntario(dadosVoluntario);
+            // Se é NOVO, adicionamos a data de cadastro agora
+            const novoVoluntario = new Voluntario({
+                ...dadosVoluntario,
+                data_cadastro_voluntario: new Date() // Grava data e hora atual
+            });
             await novoVoluntario.save();
             res.json({ status: 'sucesso', acao: 'criado' });
         }

@@ -28,30 +28,29 @@
         </div>
     </div>
 
-    <section class="voluntarios-dia">
-        <h2>Escala do Dia - <%= new Date().toLocaleDateString('pt-BR') %></h2>
-        <div class="escala-container">
-            <% 
-               const grupos = {};
-               if (typeof escala_hoje !== 'undefined') {
-                   escala_hoje.forEach(v => {
-                       if (!grupos[v.tipo]) grupos[v.tipo] = [];
-                       grupos[v.tipo].push(v.nome);
-                   });
-               }
-            %>
-
-            <% for (let tipo in grupos) { %>
-                <div class="grupo-box">
-                    <h4><%= tipo %></h4>
-                    <ul>
-                        <% grupos[tipo].forEach(nome => { %>
-                            <li><%= nome %></li>
-                        <% }) %>
-                    </ul>
-                </div>
-            <% } %>
-        </div>
-    </section>
+<section class="voluntarios-dia">
+    <h2>Escala do Dia - <%= new Date().toLocaleDateString('pt-BR') %></h2>
+    <div class="escala-container">
+        <% 
+           const gruposDia = {};
+           if (typeof escala_hoje !== 'undefined') {
+               escala_hoje.forEach(v => {
+                   if (!gruposDia[v.tipo]) gruposDia[v.tipo] = [];
+                   gruposDia[v.tipo].push(v.nome);
+               });
+           }
+        %>
+        <% for (let tipo in gruposDia) { %>
+            <div class="grupo-box">
+                <h4><%= tipo %></h4>
+                <ul>
+                    <% gruposDia[tipo].forEach(nome => { %>
+                        <li><%= nome %></li>
+                    <% }) %>
+                </ul>
+            </div>
+        <% } %>
+    </div>
+</section>
 </main>
 <%- include('partials/footer') %>

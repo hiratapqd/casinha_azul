@@ -6,6 +6,11 @@ const VoluntarioSchema = new mongoose.Schema({
     telefone: { type: String },
     email: { type: String },
     mediunidade: { type: String },
+    esta_ativo: { type: String, default: "Sim" },
+    data_cadastro_voluntario: { 
+        type: Date, 
+        default: Date.now
+    },
     // Armazena os arrays de dias para cada modalidade
     disponibilidade: {
         apometria: [String],
@@ -13,6 +18,7 @@ const VoluntarioSchema = new mongoose.Schema({
         auriculo: [String],
         maos: [String],
         homeopatia: [String],
+        passe: [String],
         cantina: [String],
         mesa: [String]
     }
