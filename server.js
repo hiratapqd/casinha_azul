@@ -134,20 +134,193 @@ app.get('/', async (req, res) => {
 });
 
 app.get('/solicitacao_atendimento', (req, res) => res.render('solicitacao_atendimento'));
-app.get('/relatorios/atendimentos-hoje', (req, res) => {
-    res.send("Página de Relatórios de Hoje em construção");
-});
-
-app.get('/relatorios/apometria-inativos', (req, res) => {
-    res.send("Página de Inativos em construção");
-});
 app.get('/cadastro_mediuns', (req, res) => {
     res.render('cadastro_mediuns');
 });
 app.get('/atendimento/apometrico', (req, res) => {
     res.render('atendimento/apometrico', { atendimentos: [] });
 });
+app.get('/atendimento/reiki', async (req, res) => {
+    res.render('atendimento/reiki');
+});
 
+app.get('/atendimento/auriculo', (req, res) => res.render('atendimento/auriculo'));
+app.get('/atendimento/maos_sem_fronteiras', (req, res) => res.render('atendimento/maos_sem_fronteiras'));
+app.get('/atendimento/homeopatico', (req, res) => res.render('atendimento/homeopatico'));
+app.get('/cadastro_mediuns', (req, res) => res.render('cadastro_mediuns')); 
+app.get('/atendimento/passe', (req, res) => res.render('atendimento/passe'));
+app.get('/api/historico/:tipo/:cpf', async (req, res) => {
+  try {
+    const { tipo, cpf } = req.params;
+
+    // 1) Busca histórico
+    const historico = await Atendimento.find({
+      cpf_assistido: cpf,
+      tipo: tipo
+    })
+      .sort({ data: -1 })
+      .limit(12)
+      .lean();
+
+    // 2) Busca assistido (SEM derrubar a rota se falhar)
+    let assistido = null;
+    try {
+      const db = mongoose.connection.db;
+      const doc = await db.collection('assistidos').findOne({ _id: cpf }); // sem projection
+      if (doc) {
+        assistido = { cpf, nome: doc.nome || "" };
+      }
+    } catch (e) {
+      console.error("⚠️ Falha ao buscar assistido:", e);
+      // continua mesmo assim
+    }
+
+    res.json({ assistido, historico });
+  } catch (err) {
+    console.error("❌ Erro /api/historico:", err);
+    res.status(500).json({ erro: err.message || "Erro ao buscar histórico" });
+  }
+});
+
+//ROTA PARA RELATÓRIO DE ABANDONO - APOMETRIA
+app.get('/relatorios/apometria-inativos', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+
+    const agora = new Date();
+    const limite30 = new Date(agora); limite30.setDate(limite30.getDate() - 30);
+    const limite60 = new Date(agora); limite60.setDate(limite60.getDate() - 60);
+    const limite90 = new Date(agora); limite90.setDate(limite90.getDate() - 90);
+
+    // Pipeline base: por CPF, pega:
+    // - ultimaData (qualquer tipo)
+    // - teveApometria (se existe pelo menos 1 apometrico)
+    const base = await db.collection('atendimento').aggregate([
+      {
+        $group: {
+          _id: "$cpf_assistido",
+          ultimaData: { $max: "$data" },
+          teveApometria: {
+            $max: {
+              $cond: [{ $eq: ["$tipo", "apometrico"] }, 1, 0]
+            }
+          }
+        }
+      },
+      // precisa ter apometria em algum momento
+      { $match: { teveApometria: 1 } },
+
+      // traz dados do assistido (no seu caso assistidos._id = cpf)
+      {
+        $lookup: {
+          from: "assistidos",
+          localField: "_id",
+          foreignField: "_id",
+          as: "assistido"
+        }
+      },
+      { $unwind: { path: "$assistido", preserveNullAndEmptyArrays: true } },
+
+      {
+        $project: {
+          _id: 0,
+          cpf: "$_id",
+          nome: { $ifNull: ["$assistido.nome", ""] },
+          telefone: { $ifNull: ["$assistido.telefone", ""] },
+          email: { $ifNull: ["$assistido.email", ""] },
+          ultimaData: 1
+        }
+      }
+    ]).toArray();
+
+    // filtra em memória por 30/60/90 (simples e rápido para volumes pequenos/médios)
+    const lista30 = base.filter(x => x.ultimaData && new Date(x.ultimaData) < limite30);
+    const lista60 = base.filter(x => x.ultimaData && new Date(x.ultimaData) < limite60);
+    const lista90 = base.filter(x => x.ultimaData && new Date(x.ultimaData) < limite90);
+
+    // padrão: mostra a lista de 60 dias
+    res.render('relatorios/apometria_inativos', {
+      counts: { d30: lista30.length, d60: lista60.length, d90: lista90.length },
+      listas: { d30: lista30, d60: lista60, d90: lista90 }
+    });
+
+  } catch (err) {
+    console.error("Erro relatório apometria-inativos:", err);
+    res.status(500).send("Erro ao gerar relatório.");
+  }
+});
+
+//ROTA PARA RELATÓRIO DE ATENDIMENTOS DE HOJE (TODOS TIPOS) - COM FILTRO POR TERAPIA E CONTAGEM PARA OS BOTÕES
+app.get('/relatorios/atendimentos-hoje', async (req, res) => {
+  try {
+    const db = mongoose.connection.db;
+
+    // HOJE em UTC (combina com o que você já usou nos cards)
+    const inicio = new Date();
+    inicio.setUTCHours(0, 0, 0, 0);
+
+    const fim = new Date(inicio);
+    fim.setUTCDate(inicio.getUTCDate() + 1);
+
+    // terapias para os botões (se você já usa a collection 'terapias', aproveitamos)
+    const terapiasAtivas = await db.collection('terapias')
+      .find({ ativa: true })
+      .sort({ ordem: 1, nome: 1 })
+      .toArray();
+
+    // atendimentos de hoje (todos os tipos)
+    const atendimentos = await db.collection('atendimento')
+      .find({ data: { $gte: inicio, $lt: fim } })
+      .sort({ data: -1 })
+      .toArray();
+
+    // total por tipo (para mostrar no botão)
+    const contagemPorTipo = await db.collection('atendimento').aggregate([
+      { $match: { data: { $gte: inicio, $lt: fim } } },
+      { $group: { _id: "$tipo", total: { $sum: 1 } } }
+    ]).toArray();
+
+    const counts = {};
+    contagemPorTipo.forEach(x => { counts[x._id] = x.total; });
+
+    res.render('relatorios/atendimentos_hoje', {
+      atendimentos,
+      terapias: terapiasAtivas, // para montar os botões
+      counts
+    });
+
+  } catch (err) {
+    console.error("Erro relatório atendimentos-hoje:", err);
+    res.status(500).send("Erro ao gerar relatório.");
+  }
+});
+app.get('/voluntarios/escala', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+        const { dia, terapia } = req.query;
+        let voluntariosFiltrados = [];
+
+        if (dia && terapia) {
+            // A consulta usa a notação de ponto para acessar o subcampo dinâmico
+
+            const query = {};
+            query[`disponibilidade.${terapia}`] = dia;
+
+            voluntariosFiltrados = await db.collection('voluntarios')
+                .find(query)
+                .sort({ nome: 1 })
+                .toArray();
+        }
+
+        res.render('visualizar_voluntarios', { 
+            voluntarios: voluntariosFiltrados, 
+            filtros: { dia, terapia } 
+        });
+    } catch (err) {
+        console.error(err);
+        res.status(500).send("Erro ao buscar escala.");
+    }
+});
 
 // --- ROTA DE CADASTRO  ---
 app.post('/mediun/novo', async (req, res) => {
@@ -276,6 +449,60 @@ app.post('/atendimento/solicitacao', async (req, res) => {
         res.status(500).send("Erro: " + error.message);
     }
 });
+// --- ROTA PARA SALVAR ATENDIMENTO APOMETRICO ---
+app.post('/atendimento/apometrico', async (req, res) => {
+  try {
+
+    const dataSelecionada = req.body.data; // YYYY-MM-DD
+    const agora = new Date();
+
+    // separa ano, mês, dia do input
+    const [ano, mes, dia] = dataSelecionada.split('-').map(Number);
+
+    // cria data com a hora atual
+    const dataComHora = new Date(Date.UTC(
+      ano,
+      mes - 1,
+      dia,
+      agora.getUTCHours(),
+      agora.getUTCMinutes(),
+      agora.getUTCSeconds(),
+      agora.getUTCMilliseconds()
+    ));
+
+    const atendimento = new Atendimento({
+      data: dataComHora,
+      cpf_assistido: req.body.cpf_assistido,
+      nome_assistido: req.body.nome_assistido,
+      voluntario: req.body.voluntario,
+      observacoes: req.body.observacoes,
+      tipo: "apometrico"
+    });
+
+    await atendimento.save();
+
+    res.status(200).send("OK");
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Erro ao salvar");
+  }
+});
+
+// --- ROTA PARA SALVAR ATENDIMENTO Auriculo ---
+app.post('/atendimento/auriculo', async (req, res) => {
+    try {
+        console.log("Recebendo dados para salvar:", req.body);
+        const novoAtendimento = new Atendimento(req.body);
+        await novoAtendimento.save();
+        console.log("✅ Atendimento salvo com sucesso!");
+        res.redirect('/atendimento/auriculo');
+    } catch (error) {
+        console.error("❌ Erro ao salvar atendimento:", error);
+        res.status(500).send("Erro ao salvar: " + error.message);
+    }
+});
+
 // --- OUTRAS ROTAS ---
 app.get('/assistido/novo', (req, res) => res.render('cadastro_assistidos'));
 
