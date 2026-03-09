@@ -260,7 +260,7 @@ app.get('/cadastro_mediuns', (req, res) => {res.render('cadastro_mediuns');});
 app.get('/atendimento/apometrico', (req, res) => {res.render('atendimento/apometrico', { atendimentos: [] });});
 app.get('/atendimento/reiki', async (req, res) => {res.render('atendimento/reiki');});
 
-app.get('/relatorios/todos-assistidos', async (req, res) => {
+/* app.get('/relatorios/todos-assistidos', async (req, res) => {
     try {
         // Busca todos os assistidos e ordena por nome
         const assistidos = await Assistido.find().sort({ nome: 1 }).lean();
@@ -307,6 +307,39 @@ app.get('/api/historico/:tipo/:cpf', async (req, res) => {
     console.error("❌ Erro /api/historico:", err);
     res.status(500).json({ erro: err.message || "Erro ao buscar histórico" });
   }
+}); */
+
+app.get('/relatorios/todos-assistidos', async (req, res) => {
+    try {
+        const db = mongoose.connection.db;
+
+        const assistidosComTratamentos = await db.collection('assistidos').aggregate([
+            { $sort: { nome: 1 } },
+            {
+                $lookup: {
+                    from: "atendimento", // Nome da sua coleção de atendimentos
+                    localField: "_id",    // CPF do assistido
+                    foreignField: "cpf_assistido",
+                    as: "historico"
+                }
+            },
+            {
+                $project: {
+                    nome: 1,
+                    cpf: "$_id",
+                    telefone: 1,
+                    email: 1,
+                    // Cria uma lista de tipos únicos de tratamento realizados
+                    tratamentos: { $setUnion: ["$historico.tipo"] }
+                }
+            }
+        ]).toArray();
+
+        res.render('relatorios/relatorio_assistidos', { assistidos: assistidosComTratamentos });
+    } catch (err) {
+        console.error("Erro ao gerar relatório de assistidos:", err);
+        res.status(500).send("Erro ao carregar relatório.");
+    }
 });
 
 //ROTA PARA RELATÓRIO DE ABANDONO - APOMETRIA
