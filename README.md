@@ -112,6 +112,12 @@ views/
 public/
 populate_db/
 ```
+## Preparar a demonstração
+rodar o script seed_demo_apometria.js
+
+```
+node seed_demo_apometria.js
+```
 
 ## Manual do usuario
 
